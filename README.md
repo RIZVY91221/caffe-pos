@@ -2,6 +2,10 @@
 
 Offline-first point-of-sale Android application built with Kotlin, Jetpack Compose, Hilt, Room, and WorkManager.
 
+## Demo
+
+- [Screen Recording](demo/screen_record.mp4)
+
 ## Setup
 
 1. Open the project in Android Studio (JDK 17, Android SDK 35).
