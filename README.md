@@ -4,7 +4,8 @@ Offline-first point-of-sale Android application built with Kotlin, Jetpack Compo
 
 ## Demo
 
-- [Screen Recording](demo/screen_record.mp4)
+- [Watch Screen Recording (Google Drive)](https://drive.google.com/file/d/1ENC6S24ETRh4tcveui3HzorlWtcm7-n_/view?usp=sharing)
+- [Screen Recording File](demo/screen_record.mp4)
 
 ## Setup
 
