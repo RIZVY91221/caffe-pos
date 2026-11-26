@@ -2,7 +2,6 @@ package com.devsstream.caffepos.ui.cart
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.devsstream.caffepos.core.model.DiscountType
 
 private enum class TenderMode { CASH, CARD, SPLIT }
 
@@ -48,91 +48,93 @@ fun CartScreen(
     ) { padding ->
         val pricing = cartState.pricing
 
-        Column(
-            Modifier.padding(padding).padding(16.dp).fillMaxSize()
-        ) {
-            if (cartState.paymentStep == PaymentStep.DONE) {
+        if (cartState.paymentStep == PaymentStep.DONE) {
+            Box(Modifier.padding(padding).fillMaxSize()) {
                 OrderCompleteView(
                     receiptNo = cartState.receiptNo ?: "",
                     changePoisha = cartState.change,
                     onDone = onBack
                 )
-                return@Column
             }
+            return@Scaffold
+        }
 
-            if (cart.items.isEmpty() || pricing == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    if (cart.items.isEmpty()) Text("Your cart is empty")
-                    else CircularProgressIndicator()
-                }
-                return@Column
+        if (cart.items.isEmpty() || pricing == null) {
+            Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
+                if (cart.items.isEmpty()) Text("Your cart is empty")
+                else CircularProgressIndicator()
             }
+            return@Scaffold
+        }
 
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                modifier = Modifier.weight(1f).fillMaxWidth()
-            ) {
-                LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+        LazyColumn(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .imePadding(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    items(pricing.lines) { line ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text(line.productName, style = MaterialTheme.typography.titleSmall)
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        pricing.lines.forEach { line ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(line.productName, style = MaterialTheme.typography.titleSmall)
+                                    Text(
+                                        "${line.quantity} × ৳${formatPoisha(line.unitPricePoisha)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                                 Text(
-                                    "${line.quantity} × ৳${formatPoisha(line.unitPricePoisha)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    "৳${formatPoisha(line.lineTotalPoisha)}",
+                                    style = MaterialTheme.typography.titleSmall
                                 )
                             }
-                            Text("৳${formatPoisha(line.lineTotalPoisha)}", style = MaterialTheme.typography.titleSmall)
                         }
-                    }
 
-                    if (pricing.p1BakeryDiscountPoisha > 0) {
-                        item {
+                        if (pricing.p1BakeryDiscountPoisha > 0) {
                             SummaryLine(
                                 label = "Bakery 3-for-2 (P1)",
                                 value = "-৳${formatPoisha(pricing.p1BakeryDiscountPoisha)}",
                                 highlight = true
                             )
                         }
-                    }
-                    if (pricing.p2HappyHourDiscountPoisha > 0) {
-                        item {
+                        if (pricing.p2HappyHourDiscountPoisha > 0) {
                             SummaryLine(
                                 label = "Happy Hour 10% (P2)",
                                 value = "-৳${formatPoisha(pricing.p2HappyHourDiscountPoisha)}",
                                 highlight = true
                             )
                         }
-                    }
 
-                    item { HorizontalDivider(Modifier.padding(vertical = 4.dp)) }
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
-                    item {
                         SummaryLine("Subtotal", "৳${formatPoisha(pricing.subtotalPoisha)}")
-                    }
-                    pricing.activeDiscount?.let { disc ->
-                        val label = when (disc.type) {
-                            com.devsstream.caffepos.core.model.DiscountType.C1_COUPON -> "Coupon (DEVS10)"
-                            com.devsstream.caffepos.core.model.DiscountType.T1_THRESHOLD -> "Order Discount (T1)"
-                        }
-                        item {
+                        pricing.activeDiscount?.let { disc ->
+                            val label = when (disc.type) {
+                                DiscountType.C1_COUPON -> "Coupon (DEVS10)"
+                                DiscountType.T1_THRESHOLD -> "Order Discount (T1)"
+                            }
                             SummaryLine(
                                 label = label,
                                 value = "-৳${formatPoisha(disc.amountPoisha)}",
                                 highlight = true
                             )
                         }
-                    }
-                    item {
                         SummaryLine("VAT (5%)", "৳${formatPoisha(pricing.vatPoisha)}")
-                    }
-                    item { HorizontalDivider(Modifier.padding(vertical = 4.dp)) }
-                    item {
+
+                        HorizontalDivider(Modifier.padding(vertical = 4.dp))
+
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text("Total Payable", Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                             Text(
@@ -145,93 +147,94 @@ fun CartScreen(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-
-            var couponInput by remember(cart.couponCode) { mutableStateOf(cart.couponCode ?: "") }
-            OutlinedTextField(
-                value = couponInput,
-                onValueChange = { couponInput = it; cartViewModel.setCoupon(it) },
-                label = { Text("Coupon Code") },
-                placeholder = { Text("e.g. DEVS10") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            when (cartState.paymentStep) {
-                PaymentStep.SELECTING -> PaymentSelector(
-                    payablePoisha = pricing.payablePoisha,
-                    cartViewModel = cartViewModel
+            item {
+                var couponInput by remember(cart.couponCode) { mutableStateOf(cart.couponCode ?: "") }
+                OutlinedTextField(
+                    value = couponInput,
+                    onValueChange = { couponInput = it; cartViewModel.setCoupon(it) },
+                    label = { Text("Coupon Code") },
+                    placeholder = { Text("e.g. DEVS10") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
                 )
-                PaymentStep.CARD_WAITING -> {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth().padding(24.dp)
+            }
+
+            item {
+                when (cartState.paymentStep) {
+                    PaymentStep.SELECTING -> PaymentSelector(
+                        payablePoisha = pricing.payablePoisha,
+                        cartViewModel = cartViewModel
+                    )
+                    PaymentStep.CARD_WAITING -> {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            CircularProgressIndicator()
-                            Spacer(Modifier.height(12.dp))
-                            Text("Processing Card Payment...", style = MaterialTheme.typography.titleSmall)
-                            Text(
-                                "Waiting for terminal response. Do not close the app.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth().padding(24.dp)
+                            ) {
+                                CircularProgressIndicator()
+                                Spacer(Modifier.height(12.dp))
+                                Text("Processing Card Payment...", style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    "Waiting for terminal response. Do not close the app.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
-                }
-                PaymentStep.SPLIT_CASH -> {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                "Card Approved · Remaining Cash: ৳${cartState.remainingPoisha / 100}",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.tertiary
-                            )
-                            var cash by remember { mutableStateOf("") }
-                            OutlinedTextField(
-                                value = cash,
-                                onValueChange = { cash = it },
-                                label = { Text("Cash Tendered (BDT)") },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Button(
-                                onClick = { cartViewModel.payCash(cash.toLongOrNull() ?: 0) },
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth().height(48.dp)
-                            ) { Text("Complete Split Payment") }
+                    PaymentStep.SPLIT_CASH -> {
+                        Card(
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    "Card Approved · Remaining Cash: ৳${cartState.remainingPoisha / 100}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.tertiary
+                                )
+                                var cash by remember { mutableStateOf("") }
+                                OutlinedTextField(
+                                    value = cash,
+                                    onValueChange = { cash = it },
+                                    label = { Text("Cash Tendered (BDT)") },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Button(
+                                    onClick = { cartViewModel.payCash(cash.toLongOrNull() ?: 0) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth().height(48.dp)
+                                ) { Text("Complete Split Payment") }
+                            }
                         }
                     }
+                    else -> {}
                 }
-                else -> {}
             }
 
             cartState.error?.let { err ->
-                Spacer(Modifier.height(8.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        err,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(12.dp)
-                    )
+                item {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            err,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
                 }
             }
         }
