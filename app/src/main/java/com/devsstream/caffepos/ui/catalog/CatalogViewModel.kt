@@ -68,6 +68,18 @@ class CatalogViewModel @Inject constructor(
         revalidate()
     }
 
+    fun clearSelection() {
+        _uiState.update {
+            it.copy(
+                selectedProduct = null,
+                selectedSizeId = null,
+                selectedModifiers = emptyList(),
+                quantity = 1,
+                violations = emptyList()
+            )
+        }
+    }
+
     fun selectSize(sizeId: String) {
         _uiState.update { it.copy(selectedSizeId = sizeId) }
         revalidate()

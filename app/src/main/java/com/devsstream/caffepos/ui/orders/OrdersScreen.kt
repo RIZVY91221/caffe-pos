@@ -3,13 +3,13 @@ package com.devsstream.caffepos.ui.orders
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -24,21 +24,73 @@ fun OrdersScreen(
     viewModel: OrdersViewModel = hiltViewModel()
 ) {
     val orders by viewModel.orders.collectAsState(initial = emptyList())
+    var filterStatus by remember { mutableStateOf<OrderStatus?>(null) }
+
+    val filtered = remember(orders, filterStatus) {
+        if (filterStatus == null) orders.reversed()
+        else orders.filter { it.status == filterStatus }.reversed()
+    }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Orders") },
+                title = { Text("Orders (${orders.size})") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
                 }
             )
         }
     ) { padding ->
-        LazyColumn(Modifier.padding(padding), contentPadding = PaddingValues(16.dp)) {
-            items(orders, key = { it.clientOrderId }) { order ->
-                OrderCard(order = order, onRetry = { viewModel.retryOrder(order.clientOrderId) })
-                Spacer(Modifier.height(8.dp))
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = filterStatus == null,
+                    onClick = { filterStatus = null },
+                    label = { Text("All") }
+                )
+                FilterChip(
+                    selected = filterStatus == OrderStatus.PENDING,
+                    onClick = { filterStatus = OrderStatus.PENDING },
+                    label = { Text("Pending") }
+                )
+                FilterChip(
+                    selected = filterStatus == OrderStatus.SYNCED,
+                    onClick = { filterStatus = OrderStatus.SYNCED },
+                    label = { Text("Synced") }
+                )
+                FilterChip(
+                    selected = filterStatus == OrderStatus.FAILED,
+                    onClick = { filterStatus = OrderStatus.FAILED },
+                    label = { Text("Failed") }
+                )
+            }
+
+            if (filtered.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "No orders found",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filtered, key = { it.clientOrderId }) { order ->
+                        OrderCard(order = order, onRetry = { viewModel.retryOrder(order.clientOrderId) })
+                    }
+                }
             }
         }
     }
@@ -46,31 +98,60 @@ fun OrdersScreen(
 
 @Composable
 fun OrderCard(order: OrderEntity, onRetry: () -> Unit) {
-    val statusColor = when (order.status) {
-        OrderStatus.SYNCED -> Color(0xFF4CAF50)
-        OrderStatus.FAILED -> Color(0xFFF44336)
-        OrderStatus.SYNCING -> Color(0xFF2196F3)
-        else -> Color(0xFFFF9800)
+    val (bgColor, fgColor) = when (order.status) {
+        OrderStatus.SYNCED -> Color(0xFFE8F5E9) to Color(0xFF2E7D32)
+        OrderStatus.FAILED -> Color(0xFFFFEBEE) to Color(0xFFC62828)
+        OrderStatus.SYNCING -> Color(0xFFE3F2FD) to Color(0xFF1565C0)
+        else -> Color(0xFFFFF3E0) to Color(0xFFEF6C00)
     }
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp)) {
-            Row(Modifier.fillMaxWidth()) {
-                Text(order.receiptNo, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                Text("৳${order.payablePoisha / 100}")
+
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(order.receiptNo, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "৳${order.payablePoisha / 100}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                Text(order.status.name, color = statusColor, style = MaterialTheme.typography.labelMedium)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(color = bgColor, shape = RoundedCornerShape(6.dp)) {
+                    Text(
+                        order.status.name,
+                        color = fgColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
                 if (order.serverOrderNo != null) {
-                    Text("  ${order.serverOrderNo}", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        order.serverOrderNo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
             if (order.status == OrderStatus.FAILED) {
                 OutlinedButton(
                     onClick = onRetry,
-                    modifier = Modifier.padding(top = 8.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.Refresh, "Retry")
-                    Spacer(Modifier.width(4.dp))
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text("Retry Sync")
                 }
             }
